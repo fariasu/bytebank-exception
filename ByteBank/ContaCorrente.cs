@@ -1,4 +1,4 @@
-﻿// using _05_ByteBank;
+﻿using System;
 
 namespace ByteBank
 {
@@ -7,26 +7,12 @@ namespace ByteBank
         public Cliente Titular { get; set; }
 
         public static int TotalDeContasCriadas { get; private set; }
+        public static int SaquesNaoPermitidos { get; private set; }
+        public static int TransferenciasNaoPermitidas { get; private set; }
 
 
-        private int _agencia;
-        public int Agencia
-        {
-            get
-            {
-                return _agencia;
-            }
-            set
-            {
-                if (value <= 0)
-                {
-                    return;
-                }
-
-                _agencia = value;
-            }
-        }
-        public int Numero { get; set; }
+        public int Agencia { get; }
+        public int Numero { get; }
 
         private double _saldo = 100;
 
@@ -36,7 +22,7 @@ namespace ByteBank
             {
                 return _saldo;
             }
-            set
+            private set
             {
                 if (value < 0)
                 {
@@ -53,19 +39,29 @@ namespace ByteBank
             Agencia = agencia;
             Numero = numero;
 
+            if(agencia <= 0)
+            {
+                throw new ArgumentException("A agência não pode ser 0!", nameof(agencia));
+            }
+            if (numero <= 0) {
+                throw new ArgumentException("O número não pode ser 0!", nameof(numero));
+
+            }
+
             TotalDeContasCriadas++;
         }
 
 
-        public bool Sacar(double valor)
+        public void Sacar(double valor)
         {
             if (_saldo < valor)
             {
-                return false;
+                SaquesNaoPermitidos++;
+                throw new SaldoInsuficienteException($"Saldo insuficiente. Não foi possível realizar o saque de R${valor}.");
             }
 
             _saldo -= valor;
-            return true;
+            
         }
 
         public void Depositar(double valor)
@@ -74,16 +70,20 @@ namespace ByteBank
         }
 
 
-        public bool Transferir(double valor, ContaCorrente contaDestino)
+        public void Transferir(double valor, ContaCorrente contaDestino)
         {
-            if (_saldo < valor)
+            try
             {
-                return false;
+                Sacar(valor);
+                contaDestino.Depositar(valor);
+            }
+            catch(SaldoInsuficienteException ex)
+            {
+                TransferenciasNaoPermitidas++;
+                throw new OperacaoFinanceiraException($"Não foi possível realizar a transferência de R${valor}.", ex);
             }
 
-            _saldo -= valor;
-            contaDestino.Depositar(valor);
-            return true;
+            
         }
     }
 }
